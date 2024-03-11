@@ -1,0 +1,250 @@
+Program.Sub.ScreenSU.Start
+Gui.Form..Create
+Gui.Form..Size(9615,14085)
+Gui.Form..MinX(0)
+Gui.Form..MinY(0)
+Gui.Form..Position(0,0)
+Gui.Form..BackColor(-2147483633)
+Gui.Form..MousePointer(0)
+Gui.Form..Event(UnLoad,Form_UnLoad)
+Gui.Form..Caption("Salespersons Schedule")
+Gui.Form.GsGrid.Create(GsGridControl)
+Gui.Form.GsGrid.Size(9090,11550)
+Gui.Form.GsGrid.Position(105,1785)
+Gui.Form.ddlChooseSales.Create(DropDownList)
+Gui.Form.ddlChooseSales.Size(4275,330)
+Gui.Form.ddlChooseSales.Position(60,450)
+Gui.Form.lbl5.Create(Label,"Salesperson",True,1935,255,0,60,165,True,0,"Arial",8,-2147483633,0)
+Gui.Form.cmdMonth.Create(Button)
+Gui.Form.cmdMonth.Size(1350,375)
+Gui.Form.cmdMonth.Position(4950,720)
+Gui.Form.cmdMonth.Caption("Month")
+Gui.Form.cmdMonth.Event(Click,cmdMonth_Click)
+Gui.Form.lbl1.Create(Label,"Date",True,1095,255,0,120,975,True,0,"Arial",8,-2147483633,0)
+Gui.Form.dtp1.Create(DatePicker)
+Gui.Form.dtp1.Size(2310,285)
+Gui.Form.dtp1.Position(90,1245)
+Gui.Form.lbl2.Create(Label,"Filter By:",True,1710,255,0,6090,315,True,0,"Arial",8,-2147483633,0)
+Gui.Form.cmdDay.Create(Button)
+Gui.Form.cmdDay.Size(1485,375)
+Gui.Form.cmdDay.Position(6600,720)
+Gui.Form.cmdDay.Caption("Day")
+Gui.Form.cmdDay.Event(Click,cmdDay_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.sFilter.Declare(String)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+F.ODBC.connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+Function.Intrinsic.Control.If(V.Caller.Hook, =, 42900)
+	V.Passed.CRM-cmdGAB-1.Set("Calendar")
+Function.Intrinsic.Control.ElseIf(V.Caller.Hook, =, 42919)
+	Function.Intrinsic.Control.CallSub(populatesalespersons)
+	F.Intrinsic.Control.CallSub(ddlpopulate)
+	F.Intrinsic.Control.CallSub(cmdmonth_click)
+Function.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4372_Calendar.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+Program.Sub.Form_UnLoad.Start
+F.Intrinsic.Control.SetErrorHandler("Form_UnLoad_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+Gui.Form..Visible(False)
+F.ODBC.Connection!con.Close
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Form_UnLoad_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4372_Calendar.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.End
+
+Function.Intrinsic.Control.EndIf
+Program.Sub.Form_UnLoad.End
+
+Program.Sub.Populate.Start
+F.Intrinsic.Control.SetErrorHandler("cmdADD_Click_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+V.Local..BulkDeclareString(ssql, sStart, sEnd, sDay, sSales, ssqlMain, sDate)
+V.Local..BulkDeclareLong(iMonth, iC)
+
+'check if table is open
+Function.Intrinsic.Control.If(V.DataTable.Calendar.Exists, =, TRUE)
+	F.Data.DataTable.Close("Calendar")
+Function.Intrinsic.Control.EndIf
+'set the Day and salesperson
+V.Local.sSales.Set(V.Screen.Form!ddlChooseSales.Text)
+V.Local.sDate.Set(V.Screen.Form!dtp1.Value)
+Function.Intrinsic.Control.If(V.Local.sSales, =, "ALL SALESPERSONS")
+'then check V.Global.sFilter
+	Function.Intrinsic.Control.If(V.Global.sFilter, =, "DAY")
+		F.Intrinsic.String.Build("Select CRM_EVENT_TYPE.VALUE as SALESPERSON, CRM_EVENTS.START_DATETIME, CRM_EVENTS.END_DATETIME From CRM_EVENTS Left Join CRM_EVENT_TYPE On CRM_EVENTS.ETYPE = CRM_EVENT_TYPE.SEQ Where Cast(CRM_EVENTS.START_DATETIME as Date) = '{0}'", V.Local.sDate.PervasiveDate, V.Local.ssql)
+		V.Local.ssqlMain.Set("Select Distinct Value as SALESPERSON From CRM_EVENT_TYPE")
+	Function.Intrinsic.Control.Else
+		'get the month
+		Function.Intrinsic.Date.Month (V.Screen.Form!dtp1.Value, V.Local.iMonth)
+		F.Intrinsic.String.Build("Select CRM_EVENT_TYPE.VALUE as SALESPERSON, CRM_EVENTS.START_DATETIME, CRM_EVENTS.END_DATETIME From CRM_EVENTS Left Join CRM_EVENT_TYPE On CRM_EVENTS.ETYPE = CRM_EVENT_TYPE.SEQ Where Month(START_DATETIME) = '{0}'", V.Local.iMonth, V.Local.ssql)
+		V.Local.ssqlMain.Set("Select Distinct Value as SALESPERSON From CRM_EVENT_TYPE")
+	Function.Intrinsic.Control.EndIf	
+Function.Intrinsic.Control.Else
+'then not all salesperson
+	Function.Intrinsic.Control.If(V.Global.sFilter, =, "DAY")
+		F.Intrinsic.String.Build("Select CRM_EVENT_TYPE.VALUE as SALESPERSON, CRM_EVENTS.START_DATETIME, CRM_EVENTS.END_DATETIME From CRM_EVENTS Left Join CRM_EVENT_TYPE On CRM_EVENTS.ETYPE = CRM_EVENT_TYPE.SEQ Where Cast(CRM_EVENTS.START_DATETIME as Date) = '{0}' And CRM_EVENT_TYPE.Value = '{1}'", V.Local.sDate.PervasiveDate, V.Local.sSales,V.Local.ssql)
+		F.Intrinsic.String.Build("Select Distinct Value as SALESPERSON From CRM_EVENT_TYPE Where Value = '{0}'", V.Local.sSales,V.Local.ssqlMain)
+	Function.Intrinsic.Control.Else
+		'get the month
+		Function.Intrinsic.Date.Month (V.Screen.Form!dtp1.Value, V.Local.iMonth)
+		F.Intrinsic.String.Build("Select CRM_EVENT_TYPE.VALUE as SALESPERSON, CRM_EVENTS.START_DATETIME, CRM_EVENTS.END_DATETIME From CRM_EVENTS Left Join CRM_EVENT_TYPE On CRM_EVENTS.ETYPE = CRM_EVENT_TYPE.SEQ Where Month(START_DATETIME) = '{0}' And CRM_EVENT_TYPE.Value = '{1}'", V.Local.iMonth, V.Local.sSales,V.Local.ssql)
+		F.Intrinsic.String.Build("Select Distinct Value as SALESPERSON From CRM_EVENT_TYPE Where Value = '{0}'", V.Local.sSales,V.Local.ssqlMain)
+	Function.Intrinsic.Control.EndIf		
+Function.Intrinsic.Control.EndIf
+
+F.Data.DataTable.CreateFromSQL("Calendar", "con",V.Local.ssqlMain, TRUE)
+F.Data.DataView.Create("Calendar","Calendar_V")
+F.Data.DataTable.CreateFromSQL("Calendar$CalendarChild", "con",V.Local.ssql, TRUE)
+F.Data.DataView.Create("Calendar$CalendarChild","CalendarChild_V")
+F.Data.DataTable.AddRelation("Calendar", "SALESPERSON","Calendar$CalendarChild" ,"SALESPERSON", "OrderInfo")
+Gui.Form.GsGrid.AddGridViewFromDataView( "Grid", "Calendar", "Calendar_V")
+Gui.Form.GsGrid.AddGridViewFromDataView( "GridChild", "Calendar", "CalendarChild_V")
+GUI.Form.GsGrid.SetColumnProperty("GridChild","SALESPERSON","Visible", False) 
+GUI.Form.GsGrid.SetColumnProperty("GridChild","START_DATETIME","HeaderHAlignment", "center")
+GUI.Form.GsGrid.SetColumnProperty("GridChild","END_DATETIME","HeaderHAlignment", "center")
+GUI.Form.GsGrid.SetColumnProperty("GridChild","START_DATETIME","CellHAlignment", "center")
+GUI.Form.GsGrid.SetColumnProperty("GridChild","END_DATETIME","CellHAlignment", "center")
+GUI.Form.GsGrid.SetColumnProperty("GridChild","SALESPERSON","ReadOnly", TRUE)
+GUI.Form.GsGrid.SetColumnProperty("GridChild","SALESPERSON","AllowEdit", FALSE)
+GUI.Form.GsGrid.SetColumnProperty("GridChild","START_DATETIME","ReadOnly", TRUE)
+GUI.Form.GsGrid.SetColumnProperty("GridChild","START_DATETIME","AllowEdit", FALSE)
+GUI.Form.GsGrid.SetColumnProperty("GridChild","END_DATETIME","ReadOnly", TRUE)
+GUI.Form.GsGrid.SetColumnProperty("GridChild","END_DATETIME","AllowEdit", FALSE)
+GUI.Form.GsGrid.SetColumnProperty("GridChild","START_DATETIME","Caption", "START TIME")
+GUI.Form.GsGrid.SetColumnProperty("GridChild","END_DATETIME","Caption", "FINISH TIME")
+GUI.Form.GsGrid.MainView("Grid")
+GUI.Form..Show
+'this must be done after show
+F.Intrinsic.Control.For(V.Local.iC, 0, V.DataTable.Calendar.RowCount--, 1)
+	GUI.Form.GsGrid.ExpandMasterRow("Grid", V.Local.iC)
+F.Intrinsic.Control.Next(V.Local.iC)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("cmdADD_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4372_Calendar.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Populate.End
+
+Program.Sub.ddlPopulate.Start
+F.Intrinsic.Control.SetErrorHandler("ddlPopulate_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+V.Local..BulkDeclareString(sMonth, sHour, sMin, sRet)
+V.Local.iC.Declare(Long)
+F.Data.Dictionary.CreateFromSQL("dict", "con", "Select Distinct Value, Value From CRM_EVENT_TYPE Where TYPE = '1'")
+GUI.Form.ddlChooseSales.AddItem("ALL SALESPERSONS")
+GUI.Form.ddlChooseSales.AddItems("Dictionary", "dict")
+F.Data.Dictionary.Close("dict")
+'set salesperson 
+GUI.Form.ddlChooseSales.Text("ALL SALESPERSONS")
+'set anchor
+GUI.Form.GsGrid.Anchor(15)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("ddlPopulate_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4372_Calendar.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.ddlPopulate.End
+
+Program.Sub.PopulateSalesPersons.Start
+F.Intrinsic.Control.SetErrorHandler("PopulateSalesPersons_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+V.Local..BulkDeclareString(ssql, sRet, sCRM)
+V.Local..BulkDeclareLong(iC, iSeq)
+'This subroutine populates the dropdown list in CRM
+'find a next seq number
+V.Local.ssql.Set("Select Top 1 SEQ From CRM_EVENT_TYPE Order By SEQ DESC")
+Function.ODBC.Connection!con.ExecuteAndReturn(V.Local.ssql,V.Local.iSeq)
+Function.ODBC.Connection!con.ExecuteAndReturn("Select Value From CRM_EVENT_TYPE",V.Local.sCRM)
+F.Intrinsic.String.Replace(V.Local.sCRM, "*!*", "", V.Local.sCRM)
+F.Intrinsic.String.Replace(V.Local.sCRM, "#$#", "','", V.Local.sCRM)
+F.Intrinsic.String.Build("Select Name From Salespersons Where Name Not IN ('{0}')", V.Local.sCRM, V.Local.ssql)
+Function.ODBC.Connection!con.ExecuteAndReturn(V.Local.ssql,V.Local.sRet)
+F.Intrinsic.String.Replace(V.Local.sRet, "*!*", "", V.Local.sRet)
+F.Intrinsic.String.Split(V.Local.sRet, "#$#", V.Local.sRet)
+Function.Intrinsic.Control.If(V.Local.sRet, <>, "")
+	F.Intrinsic.Control.For(V.Local.iC, 0, V.Local.sRet.UBound, 1)
+		F.Intrinsic.Math.Add(V.Local.iSeq, 1, V.Local.iSeq)
+		F.Intrinsic.String.Build("Insert Into CRM_EVENT_TYPE (SEQ, TYPE, VALUE) Values('{0}','1', '{1}')", V.Local.iSeq,V.Local.sRet(V.Local.iC), V.Local.ssql)
+		Function.ODBC.Connection!con.Execute(V.Local.ssql)
+	F.Intrinsic.Control.Next(V.Local.iC)
+Function.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("PopulateSalesPersons_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4372_Calendar.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.PopulateSalesPersons.End
+
+Program.Sub.cmdDay_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdMonth_Click_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+'then filter by day
+V.Global.sFilter.Set("DAY")
+Function.Intrinsic.Control.CallSub(populate)
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("cmdMonth_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4372_Calendar.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.cmdDay_Click.End
+
+Program.Sub.cmdMonth_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdMonth_Click_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+'then filter by month
+V.Global.sFilter.Set("MONTH")
+Function.Intrinsic.Control.CallSub(populate)
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("cmdMonth_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4372_Calendar.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.cmdMonth_Click.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_4372_Calendar$}$DH1$}$2/21/2017 10:34:45 AM$}$False
+Program.Sub.Comments.End
